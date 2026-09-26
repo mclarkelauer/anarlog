@@ -15,6 +15,7 @@ import { DictationLifecycle } from "~/dictation/lifecycle";
 import { takePendingWelcomeSession } from "~/onboarding/welcome-note";
 import { useSearchEngine } from "~/search/contexts/engine";
 import { initEnhancerService } from "~/services/enhancer";
+import { normalizeMeetingContentPolicy } from "~/settings/ai/processing-policy";
 import { OwnedSharedNotePublisher } from "~/session-sharing/sync";
 import { SharedAttachmentCacheLifecycle } from "~/shared-notes/attachment-cache-lifecycle";
 import { SharedNotePreviewAuthLifecycle } from "~/shared-notes/preview";
@@ -71,6 +72,9 @@ export function ClassicMainServices() {
 function ToolRegistration() {
   const auth = useAuth();
   const { search } = useSearchEngine();
+  const meetingContentPolicy = normalizeMeetingContentPolicy(
+    useConfigValue("meeting_content_policy"),
+  );
 
   const getContactSearchResults = searchContacts;
 
@@ -82,6 +86,10 @@ function ToolRegistration() {
     return folderIdForNewNote(noteFilter, folderFilter) ?? null;
   }, []);
   const getAuthHeaders = useCallback(() => auth?.getHeaders(), [auth]);
+  const getMeetingContentPolicy = useCallback(
+    () => meetingContentPolicy,
+    [meetingContentPolicy],
+  );
   const openEditTab = useCallback((requestId: string) => {
     useTabs.getState().openNew({ type: "edit", requestId });
   }, []);
@@ -98,6 +106,7 @@ function ToolRegistration() {
         getEnhancedNoteId,
         openEditTab,
         getAuthHeaders,
+        getMeetingContentPolicy,
       }),
     [
       search,
@@ -108,6 +117,7 @@ function ToolRegistration() {
       getEnhancedNoteId,
       openEditTab,
       getAuthHeaders,
+      getMeetingContentPolicy,
     ],
   );
 

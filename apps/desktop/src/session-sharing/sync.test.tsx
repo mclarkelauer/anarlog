@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   publishSessionShareSnapshot: vi.fn(),
   recordState: vi.fn(async () => {}),
   upsertDurableSharedNoteCache: vi.fn(async () => {}),
+  meetingContentPolicy: "configured",
 }));
 
 vi.mock("~/auth", () => ({ useAuth: () => mocks.auth }));
@@ -25,6 +26,9 @@ vi.mock("~/db", () => ({
 }));
 vi.mock("~/env", () => ({
   env: { VITE_API_URL: "https://api.example.com" },
+}));
+vi.mock("~/shared/config", () => ({
+  useConfigValue: () => mocks.meetingContentPolicy,
 }));
 vi.mock("~/shared-notes/cache", () => ({
   useDurableSharedNotes: () => mocks.durableNotes,
@@ -70,6 +74,7 @@ describe("OwnedSharedNotePublisher", () => {
       token_type: "bearer",
       user: { id: OWNER_ID, is_anonymous: false },
     };
+    mocks.meetingContentPolicy = "configured";
     mocks.sourceRevisions = [
       {
         shareId: SHARE_ID,
@@ -172,6 +177,17 @@ describe("OwnedSharedNotePublisher", () => {
       OWNER_ID,
       expect.objectContaining({ contentRevision: 3, webEditBase: null }),
     );
+  });
+
+  it("does not publish changes in device-only mode", async () => {
+    mocks.meetingContentPolicy = "device_only";
+    renderPublisher();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(800);
+    });
+
+    expect(mocks.publishSessionShareSnapshot).not.toHaveBeenCalled();
   });
 
   it("observes the first summary instead of the raw memo", () => {

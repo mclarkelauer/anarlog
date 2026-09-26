@@ -4,6 +4,12 @@ import { commands as localApiCommands } from "@anlg/plugin-local-api";
 
 import { supabase } from "~/auth/client";
 import { env } from "~/env";
+import {
+  isMeetingContentEgressAllowed,
+  normalizeMeetingContentPolicy,
+} from "~/settings/ai/processing-policy";
+import { getStoredSettingValues } from "~/settings/queries";
+import { resolveConfigValue } from "~/shared/config";
 
 const REQUEST_TIMEOUT_MS = 30_000;
 const SCHEDULED_INVALID_REQUEST_RETRY_DELAYS_MS = [5_000, 15_000] as const;
@@ -257,6 +263,18 @@ async function cloudApiEnabled(userId: string): Promise<boolean> {
   return (await getCloudApiSettings()).enabled;
 }
 
+async function cloudApiMeetingContentAllowed(): Promise<boolean> {
+  try {
+    const stored = await getStoredSettingValues();
+    const policy = normalizeMeetingContentPolicy(
+      resolveConfigValue("meeting_content_policy", stored),
+    );
+    return isMeetingContentEgressAllowed(policy, "cloud_sync");
+  } catch {
+    return false;
+  }
+}
+
 export async function syncCloudApiSnapshot(sessionId: string): Promise<void> {
   const intent = setSnapshotIntent(sessionId, "upsert");
   try {
@@ -290,6 +308,10 @@ async function performCloudApiSnapshotSync(
   sessionId: string,
   userId: string,
 ): Promise<void> {
+  if (!(await cloudApiMeetingContentAllowed())) {
+    removePendingChange(userId, sessionId, "upserts");
+    return;
+  }
   if (!(await cloudApiEnabled(userId))) {
     removePendingChange(userId, sessionId, "upserts");
     return;
@@ -355,6 +377,9 @@ async function deleteCloudApiSnapshotForUser(
 }
 
 export async function backfillCloudApiSnapshots(): Promise<number> {
+  if (!(await cloudApiMeetingContentAllowed())) {
+    return 0;
+  }
   const current = await session();
   if (!(await cloudApiEnabled(current.user.id))) {
     return 0;
@@ -388,6 +413,9 @@ export async function backfillCloudApiSnapshots(): Promise<number> {
 }
 
 export async function initializeCloudApiBackfill(): Promise<void> {
+  if (!(await cloudApiMeetingContentAllowed())) {
+    return;
+  }
   const current = await session();
   const settings = await getCloudApiSettings();
   if (!settings.enabled) {

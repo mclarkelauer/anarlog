@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   ),
   stopRunner: vi.fn(),
   startRunner: vi.fn((_dependencies: unknown) => mocks.stopRunner),
+  meetingContentPolicy: "configured",
 }));
 
 vi.mock("./client", () => ({
@@ -40,7 +41,8 @@ vi.mock("~/env", () => ({
 }));
 
 vi.mock("~/shared/config", () => ({
-  useConfigValue: () => true,
+  useConfigValue: (key: string) =>
+    key === "meeting_content_policy" ? mocks.meetingContentPolicy : true,
 }));
 
 import { AttachmentTransferLifecycle } from "./lifecycle";
@@ -53,6 +55,7 @@ describe("AttachmentTransferLifecycle", () => {
       access_token: "access-token",
       user: { id: "owner-1", is_anonymous: false },
     };
+    mocks.meetingContentPolicy = "configured";
   });
 
   it("refreshes an open editor attachment resolver after a restore", async () => {
@@ -100,5 +103,18 @@ describe("AttachmentTransferLifecycle", () => {
     expect(mocks.startRunner).toHaveBeenCalledOnce();
     expect(mocks.stopRunner).not.toHaveBeenCalled();
     expect(clientInput.getAccessToken()).toBe("refreshed-token");
+  });
+
+  it("does not start attachment transfers in device-only mode", () => {
+    mocks.meetingContentPolicy = "device_only";
+    const queryClient = new QueryClient();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AttachmentTransferLifecycle />
+      </QueryClientProvider>,
+    );
+
+    expect(mocks.startRunner).not.toHaveBeenCalled();
   });
 });

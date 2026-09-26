@@ -14,9 +14,14 @@ import { useAuth } from "~/auth";
 import { useLiveQuery } from "~/db";
 import { env } from "~/env";
 import {
+  isMeetingContentEgressAllowed,
+  normalizeMeetingContentPolicy,
+} from "~/settings/ai/processing-policy";
+import {
   upsertDurableSharedNoteCache,
   useDurableSharedNotes,
 } from "~/shared-notes/cache";
+import { useConfigValue } from "~/shared/config";
 
 const PUBLISH_DEBOUNCE_MS = 800;
 const EMPTY_SOURCES: OwnedShareSourceRevision[] = [];
@@ -43,6 +48,10 @@ type OwnedShareSourceRevisionSqlRow = {
 
 export function OwnedSharedNotePublisher() {
   const { session } = useAuth();
+  const sharingAllowed = isMeetingContentEgressAllowed(
+    normalizeMeetingContentPolicy(useConfigValue("meeting_content_policy")),
+    "sharing",
+  );
   const ownerUserId = session?.user.id ?? null;
   const durableNotes = useDurableSharedNotes(ownerUserId);
   const { data: sourceRevisions = EMPTY_SOURCES } = useLiveQuery<
@@ -88,7 +97,9 @@ export function OwnedSharedNotePublisher() {
       ORDER BY cache.share_id
     `,
     params: [ownerUserId ?? ""],
-    enabled: Boolean(ownerUserId && session?.user.is_anonymous !== true),
+    enabled: Boolean(
+      sharingAllowed && ownerUserId && session?.user.is_anonymous !== true,
+    ),
     mapRows: (rows) => rows.map(parseSourceRevision),
   });
   const durableByShareId = new Map(
@@ -101,6 +112,7 @@ export function OwnedSharedNotePublisher() {
     queries: sourceRevisions.flatMap((revision) => {
       const durable = durableByShareId.get(revision.shareId);
       if (
+        !sharingAllowed ||
         !session ||
         session.user.is_anonymous === true ||
         !ownerUserId ||

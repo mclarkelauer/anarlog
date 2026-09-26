@@ -8,6 +8,10 @@ import { useAuth } from "~/auth";
 import { useBillingAccess } from "~/auth/billing-context";
 import { env } from "~/env";
 import { sessionAttachmentPathsQueryKey } from "~/session/hooks/useAttachmentResolver";
+import {
+  isMeetingContentEgressAllowed,
+  normalizeMeetingContentPolicy,
+} from "~/settings/ai/processing-policy";
 import { useConfigValue } from "~/shared/config";
 import { useLatestRef } from "~/shared/hooks/useLatestRef";
 import { useMountEffect } from "~/shared/hooks/useMountEffect";
@@ -16,6 +20,9 @@ export function AttachmentTransferLifecycle() {
   const auth = useAuth();
   const billing = useBillingAccess();
   const cloudSyncEnabled = useConfigValue("cloud_sync_enabled");
+  const meetingContentPolicy = normalizeMeetingContentPolicy(
+    useConfigValue("meeting_content_policy"),
+  );
   const session = auth.session;
   const supabaseUrl = env.VITE_SUPABASE_URL;
 
@@ -24,6 +31,7 @@ export function AttachmentTransferLifecycle() {
     session.user.is_anonymous === true ||
     !billing.isPaid ||
     !cloudSyncEnabled ||
+    !isMeetingContentEgressAllowed(meetingContentPolicy, "cloud_sync") ||
     !supabaseUrl
   ) {
     return null;

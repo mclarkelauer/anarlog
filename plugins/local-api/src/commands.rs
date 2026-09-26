@@ -94,8 +94,17 @@ pub async fn dispatch_event<R: tauri::Runtime>(
     if event == dispatch::EVENT_NOTE_ENHANCED {
         run_markdown_export_automation(&pool, &meeting_id).await;
     }
+    if !meeting_content_policy_allows_webhooks(
+        load_setting(&pool, "meeting_content_policy").await.as_ref(),
+    ) {
+        return Ok(0);
+    }
     let targeted = dispatch::dispatch_event(&pool, &event, &meeting_id).await?;
     Ok(targeted as u32)
+}
+
+fn meeting_content_policy_allows_webhooks(value: Option<&serde_json::Value>) -> bool {
+    value.and_then(serde_json::Value::as_str) == Some("configured")
 }
 
 // The markdown export automation first runs on meeting.completed, before
@@ -187,6 +196,23 @@ pub async fn export_meeting_markdown<R: tauri::Runtime>(
 
 pub(crate) fn markdown_export_filename(meeting: &anlg_agent_access::Meeting) -> String {
     configured_markdown_filename(meeting, &MarkdownExportOptions::default())
+}
+
+#[cfg(test)]
+mod meeting_content_policy_tests {
+    use super::meeting_content_policy_allows_webhooks;
+
+    #[test]
+    fn webhooks_fail_closed_unless_any_configured_provider_is_selected() {
+        let configured = serde_json::Value::String("configured".to_string());
+        let device_only = serde_json::Value::String("device_only".to_string());
+        let meta_services = serde_json::Value::String("meta_services".to_string());
+
+        assert!(meeting_content_policy_allows_webhooks(Some(&configured)));
+        assert!(!meeting_content_policy_allows_webhooks(Some(&device_only)));
+        assert!(!meeting_content_policy_allows_webhooks(Some(&meta_services)));
+        assert!(!meeting_content_policy_allows_webhooks(None));
+    }
 }
 
 pub(crate) fn configured_markdown_filename(

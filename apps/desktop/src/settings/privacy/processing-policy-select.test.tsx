@@ -2,8 +2,17 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  setPolicy: vi.fn(),
+  setSettingValues: vi.fn().mockResolvedValue(undefined),
+  applyCloudsyncPreference: vi.fn().mockResolvedValue("ok"),
   value: "device_only",
+}));
+
+vi.mock("~/auth", () => ({
+  useAuth: () => ({ session: { user: { id: "user-1" } } }),
+}));
+
+vi.mock("~/auth/cloudsync", () => ({
+  applyCloudsyncPreference: mocks.applyCloudsyncPreference,
 }));
 
 vi.mock("~/shared/config", () => ({
@@ -11,7 +20,7 @@ vi.mock("~/shared/config", () => ({
 }));
 
 vi.mock("~/settings/queries", () => ({
-  useSetSettingValue: () => mocks.setPolicy,
+  setSettingValues: mocks.setSettingValues,
 }));
 
 vi.mock("@anlg/ui/components/ui/select", async () => {
@@ -72,14 +81,20 @@ describe("ProcessingPolicySelect", () => {
     mocks.value = "device_only";
   });
 
-  it("describes the device-only guarantee and persists Meta services", () => {
+  it("describes the device-only guarantee and persists Meta services", async () => {
     render(<ProcessingPolicySelect />);
 
     expect(screen.getByText("Audio, transcripts, and notes stay on this Mac."))
       .toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Meta services" }));
 
-    expect(mocks.setPolicy).toHaveBeenCalledWith("meta_services");
+    await vi.waitFor(() => {
+      expect(mocks.setSettingValues).toHaveBeenCalledWith({
+        meeting_content_policy: "meta_services",
+        cloud_sync_enabled: false,
+      });
+      expect(mocks.applyCloudsyncPreference).toHaveBeenCalled();
+    });
   });
 
   it("fails closed when a stored policy is unknown", () => {

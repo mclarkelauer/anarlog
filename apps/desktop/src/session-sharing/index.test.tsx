@@ -67,6 +67,7 @@ const mocks = vi.hoisted(() => ({
   participants: [] as any[],
   workspaces: [] as { id: string; name: string }[],
   defaultMeetingShareAccess: "me",
+  meetingContentPolicy: "configured",
 }));
 
 vi.mock("./workspace-policy", () => ({
@@ -101,7 +102,10 @@ vi.mock("~/session/queries", () => ({
 }));
 
 vi.mock("~/shared/config", () => ({
-  useConfigValue: () => mocks.defaultMeetingShareAccess,
+  useConfigValue: (key: string) =>
+    key === "meeting_content_policy"
+      ? mocks.meetingContentPolicy
+      : mocks.defaultMeetingShareAccess,
 }));
 
 vi.mock("@anlg/plugin-opener2", () => ({
@@ -397,6 +401,7 @@ describe("SessionShareButton", () => {
     mocks.participants = [];
     mocks.workspaces = [];
     mocks.defaultMeetingShareAccess = "me";
+    mocks.meetingContentPolicy = "configured";
     mocks.auth.session = createSession();
     mocks.auth.supabase = {};
     mocks.billing.isReady = true;
@@ -532,6 +537,20 @@ describe("SessionShareButton", () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
+  });
+
+  it("does not open or publish sharing in device-only mode", () => {
+    mocks.meetingContentPolicy = "device_only";
+    renderShareButton();
+
+    fireEvent.click(screen.getByRole("button", { name: "Share note" }));
+
+    expect(mocks.loadSessionShareSource).not.toHaveBeenCalled();
+    expect(mocks.createOrReuseSessionShare).not.toHaveBeenCalled();
+    expect(mocks.publishSessionShareSnapshot).not.toHaveBeenCalled();
+    expect(mocks.toastError).toHaveBeenCalledWith(
+      "Sharing is blocked by the meeting content policy.",
+    );
   });
 
   it("shows a locked share preview instead of starting sign-in for a signed-out user", async () => {

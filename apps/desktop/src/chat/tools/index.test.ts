@@ -13,6 +13,7 @@ function dependencies(): ToolDependencies {
     getEnhancedNoteId: vi.fn(),
     openEditTab: vi.fn(),
     getAuthHeaders: vi.fn(),
+    getMeetingContentPolicy: () => "configured",
   };
 }
 

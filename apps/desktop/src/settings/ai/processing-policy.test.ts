@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   classifyMeetingContentRoute,
+  isMeetingContentEgressAllowed,
   isMeetingContentRouteAllowed,
   normalizeMeetingContentPolicy,
 } from "./processing-policy";
@@ -11,6 +12,28 @@ describe("normalizeMeetingContentPolicy", () => {
     expect(normalizeMeetingContentPolicy("configured")).toBe("configured");
     expect(normalizeMeetingContentPolicy("unknown")).toBe("device_only");
     expect(normalizeMeetingContentPolicy(undefined)).toBe("device_only");
+  });
+});
+
+describe("isMeetingContentEgressAllowed", () => {
+  it("always permits local export", () => {
+    expect(isMeetingContentEgressAllowed("device_only", "local_export")).toBe(
+      true,
+    );
+    expect(isMeetingContentEgressAllowed("meta_services", "local_export"))
+      .toBe(true);
+  });
+
+  it("requires configured mode for other meeting-content egress", () => {
+    expect(isMeetingContentEgressAllowed("device_only", "cloud_sync")).toBe(
+      false,
+    );
+    expect(isMeetingContentEgressAllowed("meta_services", "sharing")).toBe(
+      false,
+    );
+    expect(isMeetingContentEgressAllowed("configured", "web_search")).toBe(
+      true,
+    );
   });
 });
 

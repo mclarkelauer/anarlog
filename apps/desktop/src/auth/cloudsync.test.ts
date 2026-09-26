@@ -305,8 +305,11 @@ describe("CloudSync auth lifecycle", () => {
     vi.mocked(suspendCloudsyncAfterAuthLoss).mockResolvedValue(undefined);
     vi.mocked(suspendCloudsyncForSignOut).mockResolvedValue(undefined);
     vi.mocked(getStoredSettingValues).mockResolvedValue({
-      values: {},
-      hasValues: new Set(),
+      values: {
+        cloud_sync_enabled: true,
+        meeting_content_policy: "configured",
+      },
+      hasValues: new Set(["cloud_sync_enabled", "meeting_content_policy"]),
     });
   });
 
@@ -341,6 +344,25 @@ describe("CloudSync auth lifecycle", () => {
     expect(configureCloudsyncToken).not.toHaveBeenCalled();
     expect(suspendCloudsync).toHaveBeenCalledTimes(1);
     expect(getCloudsyncCredentialBlock()).toBeNull();
+  });
+
+  test("keeps cloud sync suspended when meeting content egress is blocked", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    vi.mocked(getStoredSettingValues).mockResolvedValue({
+      values: {
+        cloud_sync_enabled: true,
+        meeting_content_policy: "device_only",
+      },
+      hasValues: new Set(["cloud_sync_enabled", "meeting_content_policy"]),
+    });
+
+    await applyCloudsyncPreference(session());
+    await vi.advanceTimersByTimeAsync(60 * 60 * 1000);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(configureCloudsyncToken).not.toHaveBeenCalled();
+    expect(suspendCloudsync).toHaveBeenCalledTimes(1);
   });
 
   test("starts syncing and sharing keys after automatic first-device setup", async () => {

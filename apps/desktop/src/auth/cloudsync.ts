@@ -43,6 +43,10 @@ import {
   registerDeviceEnrollment,
 } from "./sync-devices";
 
+import {
+  isMeetingContentEgressAllowed,
+  normalizeMeetingContentPolicy,
+} from "~/settings/ai/processing-policy";
 import { resolveConfigValue } from "~/shared/config";
 import { isKeychainAccessError } from "~/shared/keychain";
 
@@ -799,7 +803,12 @@ async function activateCloudsync(
     if (settings.status === "timed_out") {
       throw new Error("sync preference read timed out");
     }
-    enabled = resolveConfigValue("cloud_sync_enabled", settings.value);
+    const policy = normalizeMeetingContentPolicy(
+      resolveConfigValue("meeting_content_policy", settings.value),
+    );
+    enabled =
+      resolveConfigValue("cloud_sync_enabled", settings.value) &&
+      isMeetingContentEgressAllowed(policy, "cloud_sync");
   } catch {
     console.warn(
       "[cloudsync] sync preference is unavailable; sync remains disabled",

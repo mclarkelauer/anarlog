@@ -33,7 +33,13 @@ import {
   sendSlackRecap,
 } from "~/session-sharing/delivery-client";
 import { getSessionShareSenderName } from "~/session-sharing/invitation-management";
+import {
+  isMeetingContentEgressAllowed,
+  normalizeMeetingContentPolicy,
+  type MeetingContentPolicy,
+} from "~/settings/ai/processing-policy";
 import { getStoredSettingValues, setSettingValue } from "~/settings/queries";
+import { resolveConfigValue } from "~/shared/config";
 
 export type { AutomationRunRecord, AutomationTargetRef };
 export { parseAutomationRunRecord, parseAutomationTargetRef };
@@ -59,7 +65,18 @@ export async function runMeetingCompletedAutomations(
 export async function runNoteEnhancedAutomations(
   sessionId: string,
 ): Promise<void> {
-  const runners = [runSlackRecap, runLinearIssues, runNotionUpdate];
+  let policy: MeetingContentPolicy = "device_only";
+  try {
+    const stored = await getStoredSettingValues();
+    policy = normalizeMeetingContentPolicy(
+      resolveConfigValue("meeting_content_policy", stored),
+    );
+  } catch (error) {
+    console.error("[automations] meeting content policy unavailable", error);
+  }
+  const runners = isMeetingContentEgressAllowed(policy, "remote_automation")
+    ? [runSlackRecap, runLinearIssues, runNotionUpdate]
+    : [];
   for (const runner of runners) {
     try {
       await runner(sessionId);
@@ -78,7 +95,11 @@ async function runCustomWorkflows(
   sessionId: string,
   trigger: WorkflowTrigger,
 ): Promise<void> {
-  const { values } = await getStoredSettingValues();
+  const stored = await getStoredSettingValues();
+  const { values } = stored;
+  const policy = normalizeMeetingContentPolicy(
+    resolveConfigValue("meeting_content_policy", stored),
+  );
   const workflows = parseAutomationWorkflows(values.automation_workflows);
   for (const workflow of workflows) {
     if (!workflow.enabled || workflow.trigger !== trigger) {
@@ -91,7 +112,7 @@ async function runCustomWorkflows(
       continue;
     }
     try {
-      await runWorkflow(sessionId, workflow);
+      await runWorkflow(sessionId, workflow, policy);
     } catch (error) {
       console.error("[automations] workflow run failed", error);
     }
@@ -101,6 +122,7 @@ async function runCustomWorkflows(
 async function runWorkflow(
   sessionId: string,
   workflow: AutomationWorkflow,
+  policy: MeetingContentPolicy,
 ): Promise<void> {
   const record: AutomationRunRecord = {
     at: new Date().toISOString(),
@@ -113,6 +135,12 @@ async function runWorkflow(
     await persistWorkflowResult(workflow.id, { sessionId });
   };
   try {
+    if (
+      !isMeetingContentEgressAllowed(policy, "remote_automation") &&
+      workflow.steps.some((step) => step.type !== "markdown_export")
+    ) {
+      throw new Error("blocked by the meeting content policy");
+    }
     const details: string[] = [];
     for (const step of workflow.steps) {
       details.push(

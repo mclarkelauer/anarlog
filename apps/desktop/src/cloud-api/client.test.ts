@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   refreshSession: vi.fn(),
   getCloudSnapshot: vi.fn(),
   listCloudSnapshotIds: vi.fn(),
+  meetingContentPolicy: "configured",
 }));
 
 vi.mock("@tauri-apps/plugin-http", () => ({ fetch: mocks.fetch }));
@@ -25,6 +26,12 @@ vi.mock("~/auth/client", () => ({
 }));
 vi.mock("~/env", () => ({
   env: { VITE_API_URL: "https://api.anarlog.test" },
+}));
+vi.mock("~/settings/queries", () => ({
+  getStoredSettingValues: () => ({
+    values: { meeting_content_policy: mocks.meetingContentPolicy },
+    hasValues: new Set(["meeting_content_policy"]),
+  }),
 }));
 
 const storedValues = new Map<string, string>();
@@ -62,6 +69,7 @@ describe("cloud API client", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    mocks.meetingContentPolicy = "configured";
     mocks.fetch.mockResolvedValue(
       new Response(JSON.stringify({ enabled: true, updated_at: null }), {
         status: 200,
@@ -93,6 +101,16 @@ describe("cloud API client", () => {
 
     expect(mocks.fetch).toHaveBeenCalledTimes(1);
     expect(mocks.getCloudSnapshot).toHaveBeenCalledWith("meeting-1");
+  });
+
+  it("does not read or upload a snapshot in device-only mode", async () => {
+    mocks.meetingContentPolicy = "device_only";
+    mocks.getSession.mockResolvedValue(authSession("user-private"));
+
+    await syncCloudApiSnapshot("meeting-1");
+
+    expect(mocks.getCloudSnapshot).not.toHaveBeenCalled();
+    expect(mocks.fetch).not.toHaveBeenCalled();
   });
 
   it("continues backfill after a meeting cannot be uploaded", async () => {

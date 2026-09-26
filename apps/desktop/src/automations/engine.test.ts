@@ -66,9 +66,13 @@ import {
 } from "./engine";
 
 function storedSettings(values: Record<string, unknown>) {
+  const storedValues = {
+    meeting_content_policy: "configured",
+    ...values,
+  };
   mocks.getStoredSettingValues.mockResolvedValue({
-    values,
-    hasValues: new Set(Object.keys(values)),
+    values: storedValues,
+    hasValues: new Set(Object.keys(storedValues)),
   });
 }
 
@@ -215,6 +219,24 @@ describe("runNoteEnhancedAutomations (slack recap)", () => {
       status: "success",
       detail: "#general",
     });
+  });
+
+  it("does not post meeting content in device-only mode", async () => {
+    storedSettings({
+      meeting_content_policy: "device_only",
+      automation_slack_recap_enabled: true,
+      automation_slack_recap_channel: JSON.stringify({
+        id: "C123",
+        name: "general",
+      }),
+    });
+    mockDbRows();
+    signedInSession();
+
+    await runNoteEnhancedAutomations("session-1");
+
+    expect(mocks.sendSlackRecap).not.toHaveBeenCalled();
+    expect(recordedRun("automation_slack_recap_last_run")).toBeNull();
   });
 
   it("records an error when no summary exists yet", async () => {
@@ -534,6 +556,47 @@ describe("custom workflows", () => {
     );
     expect(saved[0].lastRun.status).toBe("success");
     expect(saved[0].processedSessionIds).toEqual(["session-1"]);
+  });
+
+  it("records a blocked remote workflow without sending content", async () => {
+    storedSettings({
+      meeting_content_policy: "device_only",
+      automation_workflows: JSON.stringify([
+        {
+          id: "wf-1",
+          title: "Recap to Slack",
+          enabled: true,
+          trigger: "note_enhanced",
+          steps: [
+            {
+              id: "step-1",
+              type: "slack_recap",
+              target: { id: "C123", name: "general" },
+            },
+          ],
+          lastRun: null,
+          processedSessionIds: [],
+          chatGroupId: null,
+        },
+      ]),
+    });
+    mockDbRows();
+    signedInSession();
+
+    await runNoteEnhancedAutomations("session-1");
+
+    expect(mocks.sendSlackRecap).not.toHaveBeenCalled();
+    const workflowCalls = mocks.setSettingValue.mock.calls.filter(
+      (entry) => entry[0] === "automation_workflows",
+    );
+    const saved = JSON.parse(
+      workflowCalls[workflowCalls.length - 1]?.[1] as string,
+    );
+    expect(saved[0].lastRun).toMatchObject({
+      status: "error",
+      detail: "blocked by the meeting content policy",
+    });
+    expect(saved[0].processedSessionIds).toEqual([]);
   });
 
   it("marks a session processed after a successful step so a later failure does not retry", async () => {

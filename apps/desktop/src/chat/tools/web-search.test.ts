@@ -10,6 +10,7 @@ describe("web search chat tool", () => {
       { query: "how can char.com help?" },
       {
         getAuthHeaders: () => null,
+        getMeetingContentPolicy: () => "configured",
         fetch: fetch as unknown as typeof globalThis.fetch,
       },
     );
@@ -54,6 +55,7 @@ describe("web search chat tool", () => {
           Authorization: "Bearer token",
           "x-request-id": "request-1",
         }),
+        getMeetingContentPolicy: () => "configured",
         fetch: fetch as unknown as typeof globalThis.fetch,
       },
     );
@@ -85,6 +87,27 @@ describe("web search chat tool", () => {
           author: null,
         },
       ],
+    });
+  });
+
+  it("does not send a request when web search is blocked", async () => {
+    const fetch = vi.fn();
+
+    const result = await runWebSearch(
+      { query: "details from a private meeting" },
+      {
+        getAuthHeaders: () => ({ Authorization: "Bearer token" }),
+        getMeetingContentPolicy: () => "device_only",
+        fetch: fetch as unknown as typeof globalThis.fetch,
+      },
+    );
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      status: "error",
+      message: "Web search is blocked by the meeting content policy.",
+      query: "details from a private meeting",
+      results: [],
     });
   });
 });

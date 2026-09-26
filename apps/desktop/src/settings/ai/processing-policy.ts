@@ -14,6 +14,13 @@ export type MeetingContentLocation =
   | "meta"
   | "hosted";
 
+export type MeetingContentEgress =
+  | "cloud_sync"
+  | "sharing"
+  | "web_search"
+  | "remote_automation"
+  | "local_export";
+
 export function normalizeMeetingContentPolicy(
   value: unknown,
 ): MeetingContentPolicy {
@@ -71,6 +78,13 @@ export function isMeetingContentRouteAllowed({
     return true;
   }
   return policy === "meta_services" && location === "meta";
+}
+
+export function isMeetingContentEgressAllowed(
+  policy: MeetingContentPolicy,
+  egress: MeetingContentEgress,
+): boolean {
+  return egress === "local_export" || policy === "configured";
 }
 
 function parseEndpoint(value: string | null | undefined): URL | null {

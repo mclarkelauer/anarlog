@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   setSettingValues: vi.fn(),
-  setSettingValue: vi.fn(),
+  applyCloudsyncPreference: vi.fn(),
   authenticate: vi.fn(),
   refreshAvailability: vi.fn(),
   lockApp: vi.fn(),
@@ -24,13 +24,21 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
+vi.mock("~/auth", () => ({
+  useAuth: () => ({ session: null }),
+}));
+
+vi.mock("~/auth/cloudsync", () => ({
+  applyCloudsyncPreference: mocks.applyCloudsyncPreference,
+}));
+
 vi.mock("@tauri-apps/plugin-os", () => ({
   platform: () => mocks.platform,
 }));
 
 vi.mock("~/settings/queries", () => ({
   useSetSettingValues: () => mocks.setSettingValues,
-  useSetSettingValue: () => mocks.setSettingValue,
+  setSettingValues: mocks.setSettingValues,
   useStoredSettingValues: () => ({
     values: mocks.values,
     hasValues: new Set([

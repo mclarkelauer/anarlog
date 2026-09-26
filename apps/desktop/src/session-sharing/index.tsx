@@ -62,6 +62,10 @@ import { useAuth } from "~/auth";
 import { useBillingAccess } from "~/auth/billing-context";
 import { env } from "~/env";
 import {
+  isMeetingContentEgressAllowed,
+  normalizeMeetingContentPolicy,
+} from "~/settings/ai/processing-policy";
+import {
   loadManagedSharedNoteForSession,
   markSessionShareActivated,
   upsertDurableSharedNoteCache,
@@ -79,6 +83,12 @@ export function SessionShareButton({
   variant?: "icon" | "cta";
 }) {
   const auth = useAuth();
+  const sharingAllowed = isMeetingContentEgressAllowed(
+    normalizeMeetingContentPolicy(useConfigValue("meeting_content_policy")),
+    "sharing",
+  );
+  const latestSharingAllowedRef = useRef(sharingAllowed);
+  latestSharingAllowedRef.current = sharingAllowed;
   const latestAuthRef = useRef(auth);
   latestAuthRef.current = auth;
   const latestSessionIdRef = useRef(sessionId);
@@ -127,7 +137,9 @@ export function SessionShareButton({
     identity: SharePreparationIdentity,
     signal: AbortSignal,
   ) => {
-    if (signal.aborted) throw new ShareManagementError();
+    if (signal.aborted || !latestSharingAllowedRef.current) {
+      throw new ShareManagementError();
+    }
     const context = requireManagementContext(latestAuthRef.current);
     if (
       context.session.user.id !== identity.ownerUserId ||
@@ -532,7 +544,7 @@ export function SessionShareButton({
   );
   const shareQuery = useQuery({
     queryKey,
-    enabled: Boolean(activeSharePanelIdentity),
+    enabled: Boolean(activeSharePanelIdentity && sharingAllowed),
     queryFn: async ({ signal }) => {
       const context = requireManagementContext(auth);
       if (context.session.user.id !== activeSharePanelIdentity?.ownerUserId) {
@@ -593,6 +605,10 @@ export function SessionShareButton({
   };
 
   const handleShare = () => {
+    if (!sharingAllowed) {
+      toast.error(t`Sharing is blocked by the meeting content policy.`);
+      return;
+    }
     if (sharePopoverOpen) {
       closeSharePopover();
       return;
@@ -625,7 +641,11 @@ export function SessionShareButton({
           data-tauri-drag-region="false"
           aria-label={t`Share note`}
           aria-expanded={sharePopoverOpen}
-          title={t`Share note`}
+          title={
+            sharingAllowed
+              ? t`Share note`
+              : t`Sharing is blocked by the meeting content policy.`
+          }
           onClick={handleShare}
           className={cn([
             variant === "cta"

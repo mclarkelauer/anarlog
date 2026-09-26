@@ -9,20 +9,22 @@ import {
   SelectValue,
 } from "@anlg/ui/components/ui/select";
 
+import { useAuth } from "~/auth";
+import { applyCloudsyncPreference } from "~/auth/cloudsync";
 import {
   normalizeMeetingContentPolicy,
   type MeetingContentPolicy,
 } from "~/settings/ai/processing-policy";
-import { useSetSettingValue } from "~/settings/queries";
+import { setSettingValues } from "~/settings/queries";
 import { SETTING_CONTROL_CLASS, SettingRow } from "~/settings/setting-row";
 import { useConfigValue } from "~/shared/config";
 
 export function ProcessingPolicySelect() {
   const { t } = useLingui();
+  const auth = useAuth();
   const value = normalizeMeetingContentPolicy(
     useConfigValue("meeting_content_policy"),
   );
-  const setPolicy = useSetSettingValue("meeting_content_policy");
 
   const description =
     value === "device_only"
@@ -36,9 +38,25 @@ export function ProcessingPolicySelect() {
       {(labelProps) => (
         <Select
           value={value}
-          onValueChange={(next) =>
-            setPolicy(normalizeMeetingContentPolicy(next))
-          }
+          onValueChange={(next) => {
+            const policy = normalizeMeetingContentPolicy(next);
+            void (async () => {
+              await setSettingValues({
+                meeting_content_policy: policy,
+                ...(policy === "configured"
+                  ? {}
+                  : { cloud_sync_enabled: false }),
+              });
+              if (policy !== "configured") {
+                await applyCloudsyncPreference(auth.session);
+              }
+            })().catch((error) => {
+              console.error(
+                "[privacy] failed to update processing mode",
+                error,
+              );
+            });
+          }}
         >
           <SelectTrigger {...labelProps} className={SETTING_CONTROL_CLASS}>
             <SelectValue placeholder={t`Select processing mode`} />

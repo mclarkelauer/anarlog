@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { ToolDependencies, WebSearchResponse } from "./types";
 
 import { env } from "~/env";
+import { isMeetingContentEgressAllowed } from "~/settings/ai/processing-policy";
 
 const webSearchInputSchema = z.object({
   query: z.string().min(1).describe("Search query for public web information."),
@@ -33,8 +34,25 @@ export type WebSearchInput = z.infer<typeof webSearchInputSchema>;
 
 export async function runWebSearch(
   params: WebSearchInput,
-  deps: Pick<ToolDependencies, "getAuthHeaders" | "fetch">,
+  deps: Pick<
+    ToolDependencies,
+    "getAuthHeaders" | "getMeetingContentPolicy" | "fetch"
+  >,
 ): Promise<WebSearchResponse> {
+  if (
+    !isMeetingContentEgressAllowed(
+      deps.getMeetingContentPolicy(),
+      "web_search",
+    )
+  ) {
+    return {
+      status: "error",
+      message: "Web search is blocked by the meeting content policy.",
+      query: params.query,
+      results: [],
+    };
+  }
+
   const headers = deps.getAuthHeaders();
   if (!headers) {
     return {

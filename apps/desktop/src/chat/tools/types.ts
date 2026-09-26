@@ -1,4 +1,5 @@
 import type { SearchFilters, SearchHit } from "~/search/contexts/engine/types";
+import type { MeetingContentPolicy } from "~/settings/ai/processing-policy";
 
 export type ContactSearchResult = {
   id: string;
@@ -55,5 +56,6 @@ export interface ToolDependencies {
   getEnhancedNoteId: () => string | undefined;
   openEditTab: (requestId: string) => void;
   getAuthHeaders: () => Record<string, string> | null | undefined;
+  getMeetingContentPolicy: () => MeetingContentPolicy;
   fetch?: typeof fetch;
 }
