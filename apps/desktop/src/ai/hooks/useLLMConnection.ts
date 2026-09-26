@@ -41,6 +41,7 @@ import {
 import {
   classifyMeetingContentRoute,
   isMeetingContentRouteAllowed,
+  normalizeMeetingContentPolicy,
   type MeetingContentLocation,
   type MeetingContentPolicy,
 } from "~/settings/ai/processing-policy";
@@ -141,7 +142,9 @@ export const useLLMConnection = (): LLMConnectionResult => {
         providerId: current_llm_provider,
         modelId: current_llm_model,
         reasoningEffort: normalizeReasoningEffort(current_llm_reasoning_effort),
-        meetingContentPolicy: meeting_content_policy,
+        meetingContentPolicy: normalizeMeetingContentPolicy(
+          meeting_content_policy,
+        ),
         providerConfig,
         session,
         isPaid: billing.isPaid,

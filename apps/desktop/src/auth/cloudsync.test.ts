@@ -2001,7 +2001,13 @@ describe("CloudSync auth lifecycle", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(configureCloudsyncToken).not.toHaveBeenCalled();
 
-    settings.resolve({ values: {}, hasValues: new Set() });
+    settings.resolve({
+      values: {
+        cloud_sync_enabled: true,
+        meeting_content_policy: "configured",
+      },
+      hasValues: new Set(["cloud_sync_enabled", "meeting_content_policy"]),
+    });
     await settings.promise;
     await vi.advanceTimersByTimeAsync(0);
 

@@ -2,6 +2,8 @@ import { describe, expect, test } from "vitest";
 
 import { resolveConfigValue } from ".";
 
+import type { StoredSettingValues } from "~/settings/queries";
+
 describe("resolveConfigValue", () => {
   test("uses legacy don't-save when audio retention is missing", () => {
     expect(
@@ -49,7 +51,7 @@ describe("resolveConfigValue", () => {
   });
 
   test("uses private and explicit recording defaults", () => {
-    const stored = { values: {}, hasValues: new Set() };
+    const stored: StoredSettingValues = { values: {}, hasValues: new Set() };
 
     expect(resolveConfigValue("cloud_sync_enabled", stored)).toBe(false);
     expect(resolveConfigValue("telemetry_consent", stored)).toBe(false);

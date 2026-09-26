@@ -28,6 +28,7 @@ import { markSessionAudioTranscriptionComplete } from "~/session/attachments";
 import { useSession, useSessionParticipants } from "~/session/queries";
 import {
   isMeetingContentRouteAllowed,
+  normalizeMeetingContentPolicy,
   type MeetingContentPolicy,
 } from "~/settings/ai/processing-policy";
 import { useConfigValue } from "~/shared/config";
@@ -711,7 +712,9 @@ export const useRunBatch = (sessionId: string) => {
     useConfigValue("audio_retention"),
   );
   const rememberSpeakers = useConfigValue("remember_speakers") === true;
-  const meetingContentPolicy = useConfigValue("meeting_content_policy");
+  const meetingContentPolicy = normalizeMeetingContentPolicy(
+    useConfigValue("meeting_content_policy"),
+  );
 
   return useCallback(
     async (filePath: string, options?: RunOptions) => {
