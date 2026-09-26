@@ -1,6 +1,13 @@
 # Local Markdown meeting-notes implementation plan
 
-Status: proposed
+Status: in progress
+
+Current progress (2026-09-26): Milestone 1 has runtime policy guards for STT,
+intelligence, CloudSync and attachment backup, Cloud API snapshots, Chat web
+search, sharing, remote automations, and webhooks. Privacy controls and a status
+panel are implemented, and fork defaults now favor explicit, local capture.
+Dependency-based formatting and test runs are still pending because the npm
+registry is returning HTTP 503 from this environment.
 
 Baseline: Anarlog `bf6536144516c21c0c5de93a78df20ea7cd5e240`
 
