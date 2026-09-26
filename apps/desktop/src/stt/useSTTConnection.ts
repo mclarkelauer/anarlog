@@ -7,6 +7,10 @@ import type { AIProviderStorage } from "@anlg/store";
 import { useAuth } from "~/auth";
 import { useBillingAccess } from "~/auth/billing-context";
 import { env } from "~/env";
+import {
+  isMeetingContentRouteAllowed,
+  type MeetingContentPolicy,
+} from "~/settings/ai/processing-policy";
 import { type ProviderId, PROVIDERS } from "~/settings/ai/stt/shared";
 import { useAiProvidersState } from "~/settings/providers";
 import { useSettingsReady } from "~/settings/queries";
@@ -23,15 +27,21 @@ export const useSTTConnection = () => {
   const auth = useAuth();
   const billing = useBillingAccess();
   const settingsReady = useSettingsReady();
-  const { current_stt_provider, current_stt_model, local_stt_model_path } =
-    useConfigValues([
+  const {
+    current_stt_provider,
+    current_stt_model,
+    local_stt_model_path,
+    meeting_content_policy,
+  } = useConfigValues([
       "current_stt_provider",
       "current_stt_model",
       "local_stt_model_path",
+      "meeting_content_policy",
     ] as const) as {
       current_stt_provider: ProviderId | undefined;
       current_stt_model: string | undefined;
       local_stt_model_path: string | undefined;
+      meeting_content_policy: MeetingContentPolicy;
     };
 
   const { providers, isReady: providerConfigReady } =
@@ -140,7 +150,21 @@ export const useSTTConnection = () => {
   const baseUrl = providerConfig?.base_url?.trim() || defaultBaseUrl?.trim();
   const apiKey = providerConfig?.api_key?.trim();
 
+  const policyBlocked = Boolean(
+    current_stt_provider &&
+      current_stt_model &&
+      !isMeetingContentRouteAllowed({
+        policy: meeting_content_policy,
+        providerId: current_stt_provider,
+        baseUrl,
+        onDevice: isLocalModel,
+      }),
+  );
+
   const connection = useMemo(() => {
+    if (policyBlocked) {
+      return null;
+    }
     if (!current_stt_provider || !current_stt_model) {
       return null;
     }
@@ -183,6 +207,7 @@ export const useSTTConnection = () => {
     apiKey,
     auth,
     billing.isPaid,
+    policyBlocked,
   ]);
 
   return {
@@ -199,5 +224,6 @@ export const useSTTConnection = () => {
     localBatchDiarizationAvailable: localBatchModel.data === true,
     isLocalModel,
     isCloudModel,
+    policyBlocked,
   };
 };

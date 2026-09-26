@@ -245,6 +245,11 @@ export const SETTING_DEFINITIONS = {
     path: ["general", "cloud_sync_enabled"],
     default: true as boolean,
   },
+  meeting_content_policy: {
+    type: "string",
+    path: ["privacy", "meeting_content_policy"],
+    default: "device_only" as const,
+  },
   ai_language: {
     type: "string",
     path: ["language", "ai_language"],

@@ -39,6 +39,15 @@ describe("resolveConfigValue", () => {
     ).toBe(false);
   });
 
+  test("keeps meeting content on device until explicitly configured otherwise", () => {
+    expect(
+      resolveConfigValue("meeting_content_policy", {
+        values: {},
+        hasValues: new Set(),
+      }),
+    ).toBe("device_only");
+  });
+
   test("shows folders on sidebar notes until explicitly disabled", () => {
     expect(
       resolveConfigValue("sidebar_show_folder", {

@@ -336,6 +336,25 @@ describe("getBatchFallbackTarget", () => {
     });
   });
 
+  test("does not fall back to hosted transcription in device-only mode", () => {
+    expect(
+      getBatchFallbackTarget({
+        isPaid: true,
+        accessToken: "token",
+        apiBaseUrl: "https://api.test",
+        currentPlatform: "macos",
+        currentArch: "aarch64",
+        meetingContentPolicy: "device_only",
+      }),
+    ).toEqual({
+      provider: "soniqo",
+      model: "soniqo-parakeet-batch",
+      baseUrl: "soniqo://local",
+      apiKey: "",
+      label: "Soniqo batch transcription",
+    });
+  });
+
   test.each(["windows", "linux"] as const)(
     "does not use local Soniqo on %s",
     (currentPlatform) => {
@@ -868,9 +887,11 @@ describe("useRunBatch", () => {
     useBillingAccessMock.mockReturnValue({
       isPaid: false,
     });
-    useConfigValueMock.mockImplementation((key) =>
-      key === "ai_language" ? "en" : [],
-    );
+    useConfigValueMock.mockImplementation((key) => {
+      if (key === "ai_language") return "en";
+      if (key === "meeting_content_policy") return "configured";
+      return [];
+    });
   });
 
   test("does not start a dictation transcription after cancellation", async () => {
@@ -1584,9 +1605,11 @@ describe("useRunBatch", () => {
         apiKey: "",
       },
     });
-    useConfigValueMock.mockImplementation((key) =>
-      key === "ai_language" ? "de" : ["en"],
-    );
+    useConfigValueMock.mockImplementation((key) => {
+      if (key === "ai_language") return "de";
+      if (key === "meeting_content_policy") return "configured";
+      return ["en"];
+    });
     startTranscriptionMock.mockResolvedValue(undefined);
 
     const { result } = renderHook(() => useRunBatch("session-1"));

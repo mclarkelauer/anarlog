@@ -26,6 +26,10 @@ import {
 import { maybeExtractVoiceprintCandidates } from "~/services/voiceprint";
 import { markSessionAudioTranscriptionComplete } from "~/session/attachments";
 import { useSession, useSessionParticipants } from "~/session/queries";
+import {
+  isMeetingContentRouteAllowed,
+  type MeetingContentPolicy,
+} from "~/settings/ai/processing-policy";
 import { useConfigValue } from "~/shared/config";
 import { id } from "~/shared/utils";
 import { notifyBatchCompleted } from "~/store/zustand/listener/general-batch";
@@ -172,14 +176,16 @@ export function getBatchFallbackTarget({
   apiBaseUrl,
   currentPlatform = platform(),
   currentArch = arch(),
+  meetingContentPolicy = "configured",
 }: {
   isPaid: boolean;
   accessToken?: string | null;
   apiBaseUrl: string;
   currentPlatform?: ReturnType<typeof platform>;
   currentArch?: ReturnType<typeof arch>;
+  meetingContentPolicy?: MeetingContentPolicy;
 }): BatchTarget | null {
-  if (isPaid && accessToken) {
+  if (meetingContentPolicy === "configured" && isPaid && accessToken) {
     return {
       provider: "anarlog",
       model: "cloud",
@@ -695,7 +701,7 @@ export const useRunBatch = (sessionId: string) => {
 
   const startTranscription = useListener((state) => state.startTranscription);
   const stopTranscription = useListener((state) => state.stopTranscription);
-  const { conn } = useSTTConnection();
+  const { conn, policyBlocked } = useSTTConnection();
   const auth = useAuth();
   const billing = useBillingAccess();
   const aiLanguage = useConfigValue("ai_language");
@@ -705,6 +711,7 @@ export const useRunBatch = (sessionId: string) => {
     useConfigValue("audio_retention"),
   );
   const rememberSpeakers = useConfigValue("remember_speakers") === true;
+  const meetingContentPolicy = useConfigValue("meeting_content_policy");
 
   return useCallback(
     async (filePath: string, options?: RunOptions) => {
@@ -712,6 +719,11 @@ export const useRunBatch = (sessionId: string) => {
       if (!startTranscription) {
         throw new Error(
           "STT connection is not available. Please configure your speech-to-text provider.",
+        );
+      }
+      if (policyBlocked && !options?.provider) {
+        throw new Error(
+          "The selected speech-to-text provider is blocked by the meeting content policy.",
         );
       }
 
@@ -736,6 +748,21 @@ export const useRunBatch = (sessionId: string) => {
               label: selectedModel,
             }
           : null;
+      if (
+        selectedTarget &&
+        !isMeetingContentRouteAllowed({
+          policy: meetingContentPolicy,
+          providerId: selectedProviderId,
+          baseUrl: selectedTarget.baseUrl,
+          onDevice:
+            isOnDeviceSttModel(selectedProviderId, selectedModel) ||
+            isLocalFileSttModel(selectedProviderId, selectedModel),
+        })
+      ) {
+        throw new Error(
+          "The selected speech-to-text provider is blocked by the meeting content policy.",
+        );
+      }
       const selectedOnDeviceUnsupported = !!(
         selectedTarget &&
         (isOnDeviceSttModel(selectedProviderId, selectedModel) ||
@@ -767,6 +794,7 @@ export const useRunBatch = (sessionId: string) => {
         apiBaseUrl: env.VITE_API_URL,
         currentPlatform,
         currentArch,
+        meetingContentPolicy,
       });
       const shouldUseSelectedTarget =
         selectedTargetSupported ||
@@ -1092,6 +1120,8 @@ export const useRunBatch = (sessionId: string) => {
       billing.isPaid,
       dictionaryTerms,
       rememberSpeakers,
+      meetingContentPolicy,
+      policyBlocked,
       session,
       participants,
       spokenLanguages,

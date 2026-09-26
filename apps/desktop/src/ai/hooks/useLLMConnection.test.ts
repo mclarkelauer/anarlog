@@ -22,6 +22,7 @@ vi.mock("~/shared/config", () => ({
     current_llm_provider: "custom",
     current_llm_model: "mtplx",
     current_llm_reasoning_effort: "default",
+    meeting_content_policy: "device_only",
   }),
 }));
 

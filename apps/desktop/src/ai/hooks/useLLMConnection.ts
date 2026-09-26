@@ -38,6 +38,12 @@ import {
   getProviderSelectionBlockers,
   type ProviderEligibilityContext,
 } from "~/settings/ai/shared/eligibility";
+import {
+  classifyMeetingContentRoute,
+  isMeetingContentRouteAllowed,
+  type MeetingContentLocation,
+  type MeetingContentPolicy,
+} from "~/settings/ai/processing-policy";
 import { useAiProvider } from "~/settings/providers";
 import { useConfigValues } from "~/shared/config";
 
@@ -62,6 +68,13 @@ export type LLMConnectionStatus =
       reason: "missing_config";
       providerId: ProviderId;
       missing: Array<"base_url" | "api_key">;
+    }
+  | {
+      status: "error";
+      reason: "processing_policy";
+      providerId: ProviderId;
+      policy: MeetingContentPolicy;
+      location: MeetingContentLocation;
     }
   | { status: "success"; providerId: ProviderId; isHosted: boolean };
 
@@ -111,10 +124,12 @@ export const useLLMConnection = (): LLMConnectionResult => {
     current_llm_provider,
     current_llm_model,
     current_llm_reasoning_effort,
+    meeting_content_policy,
   } = useConfigValues([
     "current_llm_provider",
     "current_llm_model",
     "current_llm_reasoning_effort",
+    "meeting_content_policy",
   ] as const);
   const providerConfig = useAiProvider("llm", current_llm_provider) as
     | AIProviderStorage
@@ -126,6 +141,7 @@ export const useLLMConnection = (): LLMConnectionResult => {
         providerId: current_llm_provider,
         modelId: current_llm_model,
         reasoningEffort: normalizeReasoningEffort(current_llm_reasoning_effort),
+        meetingContentPolicy: meeting_content_policy,
         providerConfig,
         session,
         isPaid: billing.isPaid,
@@ -136,6 +152,7 @@ export const useLLMConnection = (): LLMConnectionResult => {
       current_llm_model,
       current_llm_provider,
       current_llm_reasoning_effort,
+      meeting_content_policy,
       providerConfig,
     ],
   );
@@ -150,6 +167,7 @@ const resolveLLMConnection = (params: {
   providerId: string | undefined;
   modelId: string | undefined;
   reasoningEffort: ReasoningEffort;
+  meetingContentPolicy: MeetingContentPolicy;
   providerConfig: AIProviderStorage | undefined;
   session: { access_token: string } | null | undefined;
   isPaid: boolean;
@@ -158,6 +176,7 @@ const resolveLLMConnection = (params: {
     providerId: rawProviderId,
     modelId,
     reasoningEffort,
+    meetingContentPolicy,
     providerConfig,
     session,
     isPaid,
@@ -197,6 +216,31 @@ const resolveLLMConnection = (params: {
     providerDefinition.baseUrl?.trim() ||
     "";
   const apiKey = providerConfig?.api_key?.trim() || "";
+
+  const location = classifyMeetingContentRoute({
+    providerId,
+    baseUrl,
+    onDevice: providerId === "apple_foundation",
+  });
+  if (
+    !isMeetingContentRouteAllowed({
+      policy: meetingContentPolicy,
+      providerId,
+      baseUrl,
+      onDevice: providerId === "apple_foundation",
+    })
+  ) {
+    return {
+      conn: null,
+      status: {
+        status: "error",
+        reason: "processing_policy",
+        providerId,
+        policy: meetingContentPolicy,
+        location,
+      },
+    };
+  }
 
   const context: ProviderEligibilityContext = {
     isAuthenticated: !!session,

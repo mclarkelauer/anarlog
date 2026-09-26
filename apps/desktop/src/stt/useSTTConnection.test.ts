@@ -26,6 +26,10 @@ const {
     current_stt_provider: "anarlog",
     current_stt_model: "cloud",
     local_stt_model_path: "",
+    meeting_content_policy: "configured" as
+      | "device_only"
+      | "meta_services"
+      | "configured",
   },
   getServerForModelMock: vi.fn(),
   isModelDownloadedMock: vi.fn(),
@@ -70,6 +74,11 @@ vi.mock("~/settings/providers", () => ({
         base_url: "   ",
         api_key: "test-key",
       },
+      "stt:meta": {
+        type: "stt",
+        base_url: "   ",
+        api_key: "meta-key",
+      },
     },
   }),
 }));
@@ -100,6 +109,7 @@ describe("useSTTConnection", () => {
     config.current_stt_provider = "anarlog";
     config.current_stt_model = "cloud";
     config.local_stt_model_path = "";
+    config.meeting_content_policy = "configured";
     authState.session = { access_token: "access-token" };
     billingState.isPaid = true;
     billingState.isReady = true;
@@ -126,6 +136,42 @@ describe("useSTTConnection", () => {
       apiKey: "access-token",
     });
     expect(result.current.isReady).toBe(true);
+  });
+
+  it("blocks hosted transcription in device-only mode", () => {
+    config.meeting_content_policy = "device_only";
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client: queryClient }, children);
+
+    const { result } = renderHook(() => useSTTConnection(), { wrapper });
+
+    expect(result.current.conn).toBeNull();
+    expect(result.current.policyBlocked).toBe(true);
+    expect(result.current.isReady).toBe(false);
+  });
+
+  it("allows the approved Muse endpoint in Meta-services mode", () => {
+    config.current_stt_provider = "meta";
+    config.current_stt_model = "muse-voice-transcribe-1.0";
+    config.meeting_content_policy = "meta_services";
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client: queryClient }, children);
+
+    const { result } = renderHook(() => useSTTConnection(), { wrapper });
+
+    expect(result.current.conn).toEqual({
+      provider: "meta",
+      model: "muse-voice-transcribe-1.0",
+      baseUrl: "https://api.meta.ai/v1",
+      apiKey: "meta-key",
+    });
+    expect(result.current.policyBlocked).toBe(false);
   });
 
   it("uses the provider endpoint when only a Deepgram API key is stored", () => {
