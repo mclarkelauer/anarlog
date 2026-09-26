@@ -2,6 +2,7 @@ import { useLingui } from "@lingui/react/macro";
 import { platform } from "@tauri-apps/plugin-os";
 
 import { ProcessingPolicySelect } from "./processing-policy-select";
+import { ProcessingPolicyStatus } from "./processing-policy-status";
 
 import { DEVICE_AUTH_REASON } from "~/lock/auth";
 import { useAppLock } from "~/lock/store";
@@ -58,6 +59,7 @@ export function SettingsPrivacy() {
 
       <section className="flex flex-col gap-4">
         <ProcessingPolicySelect />
+        <ProcessingPolicyStatus />
         <SettingSwitchRow
           title={t`Lock app`}
           description={lockAppDescription}
