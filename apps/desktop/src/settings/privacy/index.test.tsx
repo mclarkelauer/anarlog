@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   setSettingValues: vi.fn(),
+  setSettingValue: vi.fn(),
   authenticate: vi.fn(),
   refreshAvailability: vi.fn(),
   lockApp: vi.fn(),
@@ -19,6 +20,7 @@ const mocks = vi.hoisted(() => ({
     telemetry_consent: true,
     crash_reporting_consent: false,
     lock_app: false,
+    meeting_content_policy: "device_only",
   },
 }));
 
@@ -28,6 +30,16 @@ vi.mock("@tauri-apps/plugin-os", () => ({
 
 vi.mock("~/settings/queries", () => ({
   useSetSettingValues: () => mocks.setSettingValues,
+  useSetSettingValue: () => mocks.setSettingValue,
+  useStoredSettingValues: () => ({
+    values: mocks.values,
+    hasValues: new Set([
+      "telemetry_consent",
+      "crash_reporting_consent",
+      "lock_app",
+      "meeting_content_policy",
+    ]),
+  }),
   useStoredSettingValuesQuery: () => ({
     data: {
       values: mocks.values,
@@ -35,6 +47,7 @@ vi.mock("~/settings/queries", () => ({
         "telemetry_consent",
         "crash_reporting_consent",
         "lock_app",
+        "meeting_content_policy",
       ]),
     },
     isLoading: false,

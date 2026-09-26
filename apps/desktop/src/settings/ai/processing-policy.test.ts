@@ -3,7 +3,16 @@ import { describe, expect, it } from "vitest";
 import {
   classifyMeetingContentRoute,
   isMeetingContentRouteAllowed,
+  normalizeMeetingContentPolicy,
 } from "./processing-policy";
+
+describe("normalizeMeetingContentPolicy", () => {
+  it("fails closed for unknown values", () => {
+    expect(normalizeMeetingContentPolicy("configured")).toBe("configured");
+    expect(normalizeMeetingContentPolicy("unknown")).toBe("device_only");
+    expect(normalizeMeetingContentPolicy(undefined)).toBe("device_only");
+  });
+});
 
 describe("classifyMeetingContentRoute", () => {
   it("recognizes device and loopback processing", () => {

@@ -48,6 +48,18 @@ describe("resolveConfigValue", () => {
     ).toBe("device_only");
   });
 
+  test("uses private and explicit recording defaults", () => {
+    const stored = { values: {}, hasValues: new Set() };
+
+    expect(resolveConfigValue("cloud_sync_enabled", stored)).toBe(false);
+    expect(resolveConfigValue("telemetry_consent", stored)).toBe(false);
+    expect(resolveConfigValue("crash_reporting_consent", stored)).toBe(false);
+    expect(resolveConfigValue("auto_start_scheduled_meetings", stored)).toBe(
+      false,
+    );
+    expect(resolveConfigValue("audio_retention", stored)).toBe("none");
+  });
+
   test("shows folders on sidebar notes until explicitly disabled", () => {
     expect(
       resolveConfigValue("sidebar_show_folder", {

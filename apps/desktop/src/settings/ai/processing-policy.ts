@@ -14,6 +14,14 @@ export type MeetingContentLocation =
   | "meta"
   | "hosted";
 
+export function normalizeMeetingContentPolicy(
+  value: unknown,
+): MeetingContentPolicy {
+  return MEETING_CONTENT_POLICIES.includes(value as MeetingContentPolicy)
+    ? (value as MeetingContentPolicy)
+    : "device_only";
+}
+
 export function classifyMeetingContentRoute({
   providerId,
   baseUrl,
@@ -97,11 +105,13 @@ function isPrivateNetworkHost(value: string): boolean {
       (octets[0] === 169 && octets[1] === 254)
     );
   }
-  return hostname.includes(":") &&
+  return (
+    hostname.includes(":") &&
     (hostname.startsWith("fc") ||
       hostname.startsWith("fd") ||
       hostname.startsWith("fe8") ||
       hostname.startsWith("fe9") ||
       hostname.startsWith("fea") ||
-      hostname.startsWith("feb"));
+      hostname.startsWith("feb"))
+  );
 }

@@ -39,4 +39,25 @@ describe("ConfigError", () => {
       state: { tab: "intelligence" },
     });
   });
+
+  it("opens Privacy settings when the selected provider is blocked", () => {
+    render(<ConfigError policyBlocked />);
+
+    expect(
+      screen.getByText("Provider blocked by meeting content policy"),
+    ).not.toBeNull();
+    expect(
+      screen.getByText(
+        "Choose a permitted provider or change the processing mode in Privacy settings.",
+      ),
+    ).not.toBeNull();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open Privacy settings" }),
+    );
+    expect(openNew).toHaveBeenCalledWith({
+      type: "settings",
+      state: { tab: "privacy" },
+    });
+  });
 });

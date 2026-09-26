@@ -42,7 +42,7 @@ export const SETTING_DEFINITIONS = {
   auto_start_scheduled_meetings: {
     type: "boolean",
     path: ["general", "auto_start_scheduled_meetings"],
-    default: true as boolean,
+    default: false as boolean,
   },
   auto_join_scheduled_meetings: {
     type: "boolean",
@@ -137,7 +137,7 @@ export const SETTING_DEFINITIONS = {
   audio_retention: {
     type: "string",
     path: ["general", "audio_retention"],
-    default: "forever" as string,
+    default: "none" as string,
   },
   remember_speakers: {
     type: "boolean",
@@ -218,12 +218,12 @@ export const SETTING_DEFINITIONS = {
   telemetry_consent: {
     type: "boolean",
     path: ["general", "telemetry_consent"],
-    default: true as boolean,
+    default: false as boolean,
   },
   crash_reporting_consent: {
     type: "boolean",
     path: ["general", "crash_reporting_consent"],
-    default: true as boolean,
+    default: false as boolean,
   },
   lock_app: {
     type: "boolean",
@@ -243,7 +243,7 @@ export const SETTING_DEFINITIONS = {
   cloud_sync_enabled: {
     type: "boolean",
     path: ["general", "cloud_sync_enabled"],
-    default: true as boolean,
+    default: false as boolean,
   },
   meeting_content_policy: {
     type: "string",

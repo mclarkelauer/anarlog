@@ -73,9 +73,12 @@ export const Enhanced = forwardRef<
     }
 
     const isConfigError = shouldShowEmptySummaryConfigError(llmStatus);
+    const policyBlocked =
+      llmStatus.status === "error" &&
+      llmStatus.reason === "processing_policy";
 
     if (status === "idle" && isConfigError && !hasContent) {
-      return <ConfigError />;
+      return <ConfigError policyBlocked={policyBlocked} />;
     }
 
     if (showStreaming) {

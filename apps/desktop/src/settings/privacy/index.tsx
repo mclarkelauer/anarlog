@@ -1,6 +1,7 @@
 import { useLingui } from "@lingui/react/macro";
 import { platform } from "@tauri-apps/plugin-os";
-import { useEffect } from "react";
+
+import { ProcessingPolicySelect } from "./processing-policy-select";
 
 import { DEVICE_AUTH_REASON } from "~/lock/auth";
 import { useAppLock } from "~/lock/store";
@@ -12,6 +13,7 @@ import {
 } from "~/settings/queries";
 import { SettingSwitchRow } from "~/settings/setting-row";
 import { resolveConfigValue } from "~/shared/config";
+import { useMountEffect } from "~/shared/hooks/useMountEffect";
 
 export function SettingsPrivacy() {
   const { i18n, t } = useLingui();
@@ -23,9 +25,9 @@ export function SettingsPrivacy() {
   const lockApp = useAppLock((state) => state.lockApp);
   const refreshAvailability = useAppLock((state) => state.refreshAvailability);
 
-  useEffect(() => {
+  useMountEffect(() => {
     void refreshAvailability();
-  }, [refreshAvailability]);
+  });
 
   if (settingsQuery.error) {
     throw settingsQuery.error;
@@ -55,6 +57,7 @@ export function SettingsPrivacy() {
       <SettingsPageTitle title={i18n._(privacyMessages.title)} />
 
       <section className="flex flex-col gap-4">
+        <ProcessingPolicySelect />
         <SettingSwitchRow
           title={t`Lock app`}
           description={lockAppDescription}

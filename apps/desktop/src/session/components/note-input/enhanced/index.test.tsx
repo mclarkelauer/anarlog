@@ -67,7 +67,9 @@ vi.mock("~/session/queries", () => ({
 }));
 
 vi.mock("./config-error", () => ({
-  ConfigError: () => <div>Config error</div>,
+  ConfigError: ({ policyBlocked }: { policyBlocked?: boolean }) => (
+    <div>{policyBlocked ? "Policy error" : "Config error"}</div>
+  ),
 }));
 
 vi.mock("./editor", () => ({
@@ -420,6 +422,21 @@ describe("Enhanced", () => {
 
     expect(screen.getByText("Config error")).not.toBeNull();
     expect(screen.queryByText("Enhanced editor")).toBeNull();
+  });
+
+  it("identifies providers blocked by the meeting content policy", () => {
+    hoisted.llmStatus = {
+      status: "error",
+      reason: "processing_policy",
+      providerId: "openai",
+      policy: "device_only",
+      location: "hosted",
+    };
+
+    render(<Enhanced sessionId="session-1" enhancedNoteId="note-1" />);
+
+    expect(screen.getByText("Policy error")).not.toBeNull();
+    expect(screen.queryByText("Config error")).toBeNull();
   });
 
   it("renders the editor when the enhanced note already has content", () => {
